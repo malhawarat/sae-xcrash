@@ -127,10 +127,10 @@ Key dependencies (from `environment.yml`):
 | SHAP | 0.51.0 |
 | pandas | 2.2.2 |
 | NumPy | 2.0.2 |
-| scikit-learn | — |
-| Optuna | — |
-| CatBoost | — |
-| scipy | — |
+| scikit-learn | 1.6.1 |
+| Optuna | 4.9.0 |
+| CatBoost | 1.2.10 |
+| scipy | 1.16.3 |
 
 All experiments were run on Google Colab with an NVIDIA A100 GPU (40 GB HBM2).
 Training time: ~18 min for LightGBM on the full US-Accidents dataset; the XAI stability audit on the 5,000-instance subsample takes ~10 min.
