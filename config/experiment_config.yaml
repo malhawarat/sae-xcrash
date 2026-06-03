@@ -1,0 +1,152 @@
+# SAE-XCrash Experiment Configuration
+# All experiments are fully reproducible using these settings.
+# Companion to: "Calibrated and Explainable Gradient Boosting for Road Traffic
+# Crash Severity Prediction: SHAP Audit and Cross-Jurisdiction Transfer Evaluation"
+
+# ── Global ────────────────────────────────────────────────────────────────────
+seed: 42
+
+# ── Datasets ──────────────────────────────────────────────────────────────────
+datasets:
+  us_accidents:
+    source: "https://smoosavi.org/datasets/us_accidents"
+    license: "CC BY 4.0"
+    train_years: [2016, 2017, 2018, 2019, 2020, 2021]
+    val_year: 2022
+    test_year: 2023
+    n_train: 5549870
+    n_val: 1268806
+    n_test: 166552
+    positive_class: "Severity 4"
+    scale_pos_weight: 36.0
+    n_features: 32
+
+  uk_stats19:
+    source: "https://www.data.gov.uk/dataset/cb7ae6f0-4be6-4935-9277-47e5ce24a11f/road-safety-data"
+    license: "Open Government Licence v3.0"
+    train_years: [2016, 2017, 2018, 2019, 2020]
+    val_year: 2021
+    test_year: 2022
+    n_train: 699060
+    n_val: 106004
+    n_test: 205185
+    positive_class: "Fatal or Serious"
+    scale_pos_weight: 4.03
+    n_features: 22
+    n_common_features: 10
+
+# ── Hyperparameter Tuning (Optuna TPE) ────────────────────────────────────────
+optuna:
+  sampler: TPESampler
+  direction: maximize
+  metric: AUPRC
+  n_trials_us: 100
+  n_trials_s19: 50
+
+  xgboost_search_space:
+    learning_rate: [0.001, 0.3]        # log scale
+    n_estimators: [100, 2000]
+    max_depth: [1, 15]
+    subsample: [0.5, 1.0]
+    colsample_bytree: [0.5, 1.0]
+    reg_alpha: [1.0e-8, 10.0]          # log scale
+    reg_lambda: [1.0e-8, 10.0]         # log scale
+    min_child_weight: [1, 20]
+
+  lightgbm_search_space:
+    learning_rate: [0.001, 0.3]        # log scale
+    n_estimators: [100, 2000]
+    num_leaves: [31, 300]
+    subsample: [0.5, 1.0]
+    colsample_bytree: [0.5, 1.0]
+    reg_alpha: [1.0e-8, 10.0]          # log scale
+    reg_lambda: [1.0e-8, 10.0]         # log scale
+    min_child_samples: [5, 100]
+
+# ── Best XGBoost Hyperparameters (US-Accidents) ───────────────────────────────
+xgboost_best_us:
+  learning_rate: 0.0632
+  n_estimators: 1100
+  max_depth: 10
+  subsample: 0.9448
+  colsample_bytree: 0.7279
+  reg_alpha: 5.6e-6
+  reg_lambda: 1.3e-7
+  min_child_weight: 9
+  scale_pos_weight: 36.0
+  objective: binary:logistic
+  eval_metric: aucpr
+  seed: 42
+
+# ── Best XGBoost Hyperparameters (STATS19 retrain) ────────────────────────────
+xgboost_best_s19:
+  learning_rate: 0.0689
+  n_estimators: 1040
+  max_depth: 7
+  subsample: 0.9042
+  colsample_bytree: 0.6848
+  reg_alpha: 0.0950
+  scale_pos_weight: 4.03
+  objective: binary:logistic
+  eval_metric: aucpr
+  seed: 42
+
+# ── Random Forest Baseline ────────────────────────────────────────────────────
+random_forest:
+  n_estimators: 200
+  max_depth: 10                        # best from grid search {10, 15, 20}
+  class_weight: balanced
+  training_subsample: 500000           # stratified subsample for grid search
+  seed: 42
+
+# ── Calibration ───────────────────────────────────────────────────────────────
+calibration:
+  methods: [isotonic, platt, temperature_scaling]
+  primary_method: isotonic
+  ece_bins: 15
+  fitted_on: validation_window
+
+# ── SHAP / XAI Audit ──────────────────────────────────────────────────────────
+xai_audit:
+  shap_subsample_n: 50000             # stratified subsample for SHAP values
+  stability_subsample_n: 5000         # subsample for stability test
+  stats19_shap_subsample_n: 20000
+
+  sanity_check:
+    jsd_threshold: 0.20
+    top_n_features: 10
+
+  faithfulness:
+    k_coarse: [5, 10, 20, 30, 50]    # % of features masked/revealed
+    k_fine: [1, 2, 5, 10, 20, 30, 50]
+    gap_threshold: 0.05
+
+  stability:
+    n_perturbations: 10
+    sigma_baseline: 0.01              # fraction of feature std
+    sigma_sensitivity: [0.01, 0.05, 0.10]
+    cosine_threshold: 0.70
+    low_stability_fraction_threshold: 0.40
+
+# ── Cross-Dataset Transfer ────────────────────────────────────────────────────
+transfer:
+  tiers: [zero_shot, recalibrated, retrained]
+  n_harmonized_features: 22
+  n_informative_common_features: 10
+  common_features:
+    - t_year
+    - t_month
+    - t_hour
+    - t_dayofweek
+    - t_is_weekend
+    - t_season
+    - t_is_rush
+    - t_is_night
+    - w_weather_cat
+    - w_is_dark
+
+# ── Statistical Reporting ─────────────────────────────────────────────────────
+statistics:
+  bootstrap_replications: 1000
+  confidence_interval: 0.95
+  bonferroni_correction: true

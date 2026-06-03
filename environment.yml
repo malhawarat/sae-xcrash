@@ -1,0 +1,19 @@
+name: sae-xcrash
+channels:
+  - defaults
+  - conda-forge
+dependencies:
+  - python=3.12
+  - pip
+  - pip:
+      - xgboost==3.2.0
+      - lightgbm==4.6.0
+      - shap==0.51.0
+      - scikit-learn
+      - optuna
+      - catboost
+      - pandas==2.2.2
+      - numpy==2.0.2
+      - scipy
+      - matplotlib
+      - pyarrow
